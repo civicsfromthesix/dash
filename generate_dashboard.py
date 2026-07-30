@@ -145,3 +145,40 @@ if __name__ == "__main__":
     with open("dashboard.html", "w", encoding="utf-8") as f:
         f.write(generate_html())
     print("Dashboard generated: dashboard.html")
+# Save this file in your repo at exactly this path: .github/workflows/update.yml
+# (GitHub Actions only looks for workflows in that folder.)
+
+name: Refresh dashboard
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # every 30 minutes (GitHub may run it a bit late — that's normal)
+  workflow_dispatch: {}        # lets you click "Run workflow" manually to test it
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install requests
+
+      - name: Generate dashboard
+        env:
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+        run: python generate_dashboard.py
+
+      - name: Publish updated files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add dashboard.html x_cache.json
+          git diff --staged --quiet || git commit -m "Refresh dashboard data"
+          git push
